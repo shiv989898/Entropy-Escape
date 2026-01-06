@@ -1,0 +1,122 @@
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { GameEngine } from './game/GameEngine';
+import { Overlay } from './components/Overlay';
+import { GameState, Upgrade } from './types';
+
+const App: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const engineRef = useRef<GameEngine | null>(null);
+
+  const [gameState, setGameState] = useState<GameState>(GameState.MENU);
+  
+  const [score, setScore] = useState(0);
+  const [health, setHealth] = useState(100);
+  const [maxHealth, setMaxHealth] = useState(100);
+  const [loop, setLoop] = useState(1);
+  const [timeRemaining, setTimeRemaining] = useState(60);
+  const [maxTime, setMaxTime] = useState(60);
+  
+  // New States
+  const [xp, setXp] = useState(0);
+  const [maxXp, setMaxXp] = useState(100);
+  const [abilityCooldown, setAbilityCooldown] = useState(0);
+  const [maxAbilityCooldown, setMaxAbilityCooldown] = useState(10);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    // Create engine
+    const engine = new GameEngine(canvasRef.current, {
+      onHealthChange: (curr, max) => {
+          setHealth(curr);
+          setMaxHealth(max);
+      },
+      onScoreChange: (s) => setScore(s),
+      onLoopChange: (l, t, max) => {
+          setLoop(l);
+          setTimeRemaining(Math.max(0, t));
+          setMaxTime(max);
+      },
+      onGameOver: (finalStats) => {
+          setGameState(GameState.GAME_OVER);
+          setScore(Math.floor(finalStats.score));
+      },
+      onLevelUp: () => {
+          setGameState(GameState.LEVEL_UP);
+      },
+      onPauseToggle: (isPaused) => {
+          setGameState(isPaused ? GameState.PAUSED : GameState.PLAYING);
+      },
+      onXpChange: (curr, max, level) => {
+          setXp(curr);
+          setMaxXp(max);
+      },
+      onAbilityCooldown: (curr, max) => {
+          setAbilityCooldown(curr);
+          setMaxAbilityCooldown(max);
+      }
+    });
+
+    engineRef.current = engine;
+    engine.draw();
+
+    return () => {
+      engine.destroy(); 
+    };
+  }, []);
+
+  const handleStart = useCallback(() => {
+      if(engineRef.current) {
+          engineRef.current.reset();
+          engineRef.current.start();
+          setGameState(GameState.PLAYING);
+      }
+  }, []);
+
+  const handleRestart = useCallback(() => {
+      handleStart();
+  }, [handleStart]);
+
+  const handleResume = useCallback(() => {
+      if(engineRef.current) {
+          engineRef.current.togglePause();
+      }
+  }, []);
+
+  const handleUpgradeSelect = useCallback((upgrade: Upgrade) => {
+      if(engineRef.current) {
+          engineRef.current.applyUpgrade(upgrade);
+          setGameState(GameState.PLAYING);
+      }
+  }, []);
+
+  return (
+    <div className="relative w-screen h-screen bg-black flex items-center justify-center overflow-hidden">
+        <canvas 
+            ref={canvasRef} 
+            className="block cursor-none outline-none"
+            style={{ display: 'block' }} 
+        />
+        
+        <Overlay 
+            gameState={gameState}
+            score={score}
+            health={health}
+            maxHealth={maxHealth}
+            xp={xp}
+            maxXp={maxXp}
+            abilityCooldown={abilityCooldown}
+            maxAbilityCooldown={maxAbilityCooldown}
+            loop={loop}
+            timeRemaining={timeRemaining}
+            maxTime={maxTime}
+            onStart={handleStart}
+            onRestart={handleRestart}
+            onResume={handleResume}
+            onUpgradeSelect={handleUpgradeSelect}
+        />
+    </div>
+  );
+};
+
+export default App;
