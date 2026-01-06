@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { GameState, Upgrade } from '../types';
-import { Play, RotateCcw, Zap, Skull, Shield, Activity, Clock, Pause, Target, Disc, Move } from 'lucide-react';
+import { GameState, Upgrade, LoreFragment } from '../types';
+import { Play, RotateCcw, Zap, Skull, Shield, Activity, Clock, Pause, Target, Disc, Move, Database, FileText, Lock } from 'lucide-react';
+import { LORE_DATABASE } from '../game/constants';
 
 interface OverlayProps {
   gameState: GameState;
@@ -15,10 +16,13 @@ interface OverlayProps {
   timeRemaining: number;
   maxTime: number;
   showWarning: boolean;
+  collectedLore: LoreFragment[];
+  currentLoreFragment: LoreFragment | null;
   onStart: () => void;
   onRestart: () => void;
   onUpgradeSelect: (upgrade: Upgrade) => void;
   onResume: () => void;
+  onCloseLore: () => void;
 }
 
 const UPGRADES_POOL: Upgrade[] = [
@@ -67,9 +71,11 @@ const getRandomUpgrades = (count: number) => {
 
 export const Overlay: React.FC<OverlayProps> = ({ 
     gameState, score, health, maxHealth, xp, maxXp, abilityCooldown, maxAbilityCooldown, loop, timeRemaining, maxTime, showWarning,
-    onStart, onRestart, onUpgradeSelect, onResume
+    collectedLore, currentLoreFragment,
+    onStart, onRestart, onUpgradeSelect, onResume, onCloseLore
 }) => {
   const [upgrades, setUpgrades] = useState<Upgrade[]>([]);
+  const [showDatabase, setShowDatabase] = useState(false);
 
   useEffect(() => {
     if (gameState === GameState.LEVEL_UP) {
@@ -82,6 +88,24 @@ export const Overlay: React.FC<OverlayProps> = ({
   const xpPerc = (xp / maxXp) * 100;
   const abilityReady = abilityCooldown <= 0;
   const abilityPerc = ((maxAbilityCooldown - abilityCooldown) / maxAbilityCooldown) * 100;
+
+  // Render Lore Modal
+  if (currentLoreFragment) {
+      return (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/90 backdrop-blur-md z-50 pointer-events-auto">
+              <div className="w-full max-w-2xl p-8 border-2 border-white bg-black relative animate-in zoom-in duration-300">
+                  <div className="absolute top-0 left-0 bg-white text-black px-4 py-1 font-bold font-mono text-sm">SYSTEM_DECRYPTION_SUCCESS</div>
+                  <h2 className="text-4xl font-bold text-cyan-400 mt-8 mb-4 glitch" data-text={currentLoreFragment.title}>{currentLoreFragment.title}</h2>
+                  <p className="text-xl text-gray-200 font-mono leading-relaxed mb-8 border-l-4 border-gray-700 pl-6">
+                      "{currentLoreFragment.content}"
+                  </p>
+                  <button onClick={onCloseLore} className="w-full py-4 bg-white text-black font-bold hover:bg-gray-200 transition-colors">
+                      CLOSE FILE
+                  </button>
+              </div>
+          </div>
+      );
+  }
 
   // Render HUD
   if (gameState === GameState.PLAYING) {
@@ -171,20 +195,56 @@ export const Overlay: React.FC<OverlayProps> = ({
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-50 pointer-events-auto">
       
-      {/* PAUSED */}
-      {gameState === GameState.PAUSED && (
+      {/* PAUSED / MENU SHARED */}
+      {gameState === GameState.PAUSED && !showDatabase && (
           <div className="text-center space-y-8">
               <h1 className="text-6xl font-black text-white tracking-widest glitch" data-text="PAUSED">PAUSED</h1>
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 w-64 mx-auto">
                 <button onClick={onResume} className="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold skew-x-[-12deg] flex items-center justify-center gap-2">
                     <Play size={20} /> RESUME
+                </button>
+                <button onClick={() => setShowDatabase(true)} className="px-8 py-3 bg-gray-800 hover:bg-gray-700 text-white font-bold skew-x-[-12deg] flex items-center justify-center gap-2 border border-gray-600">
+                    <Database size={20} /> DATABASE
                 </button>
               </div>
           </div>
       )}
 
+      {/* DATABASE VIEW */}
+      {showDatabase && (
+          <div className="w-full max-w-4xl h-[80vh] bg-black border border-gray-700 p-8 flex flex-col relative animate-in fade-in slide-in-from-bottom-10">
+              <div className="flex justify-between items-center mb-6 border-b border-gray-800 pb-4">
+                  <h2 className="text-3xl font-bold text-cyan-400 flex items-center gap-2"><Database /> SYSTEM LOGS</h2>
+                  <button onClick={() => setShowDatabase(false)} className="text-gray-400 hover:text-white font-bold">CLOSE_DB</button>
+              </div>
+              <div className="flex-1 overflow-y-auto pr-4 space-y-4">
+                  {LORE_DATABASE.map((lore) => {
+                      const isUnlocked = collectedLore.find(cl => cl.id === lore.id);
+                      return (
+                          <div key={lore.id} className={`p-4 border ${isUnlocked ? 'border-cyan-900 bg-cyan-950/20' : 'border-gray-800 bg-gray-900/50'} relative`}>
+                              <div className="flex justify-between items-start mb-2">
+                                  <h3 className={`font-mono font-bold ${isUnlocked ? 'text-white' : 'text-gray-600'}`}>
+                                      {isUnlocked ? lore.title : 'ENCRYPTED_FILE'}
+                                  </h3>
+                                  <span className="text-xs text-gray-600 font-mono">{lore.id}</span>
+                              </div>
+                              <p className={`font-mono text-sm ${isUnlocked ? 'text-gray-300' : 'text-gray-700 blur-sm select-none'}`}>
+                                  {lore.content}
+                              </p>
+                              {!isUnlocked && (
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                      <Lock className="text-gray-700" size={32} />
+                                  </div>
+                              )}
+                          </div>
+                      );
+                  })}
+              </div>
+          </div>
+      )}
+
       {/* MAIN MENU */}
-      {gameState === GameState.MENU && (
+      {gameState === GameState.MENU && !showDatabase && (
         <div className="text-center space-y-8 max-w-lg">
           <div className="space-y-2">
               <h1 className="text-8xl font-black text-white glitch tracking-tighter" data-text="NEON LOOP">NEON LOOP</h1>
@@ -198,14 +258,19 @@ export const Overlay: React.FC<OverlayProps> = ({
               <p>> ABILITY: [E] or [R-CLICK] PULSE NOVA</p>
               <p>> MECHANIC: COLLECT DATA FRAGMENTS TO TRIGGER OVERDRIVE</p>
           </div>
-          <button 
-            onClick={onStart}
-            className="w-full group relative px-12 py-4 bg-transparent border-2 border-cyan-500 text-cyan-500 text-2xl font-bold hover:bg-cyan-500 hover:text-black transition-all duration-100 skew-x-[-12deg]"
-          >
-            <span className="block skew-x-[12deg] flex items-center gap-2 justify-center">
-                <Play size={24} /> INITIALIZE RUN
-            </span>
-          </button>
+          <div className="flex flex-col gap-4">
+            <button 
+                onClick={onStart}
+                className="w-full group relative px-12 py-4 bg-transparent border-2 border-cyan-500 text-cyan-500 text-2xl font-bold hover:bg-cyan-500 hover:text-black transition-all duration-100 skew-x-[-12deg]"
+            >
+                <span className="block skew-x-[12deg] flex items-center gap-2 justify-center">
+                    <Play size={24} /> INITIALIZE RUN
+                </span>
+            </button>
+             <button onClick={() => setShowDatabase(true)} className="w-full px-8 py-3 bg-gray-900 hover:bg-gray-800 text-gray-400 font-bold skew-x-[-12deg] flex items-center justify-center gap-2 border border-gray-700">
+                <Database size={20} /> VIEW LOGS
+            </button>
+          </div>
         </div>
       )}
 

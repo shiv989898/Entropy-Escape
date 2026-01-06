@@ -1,5 +1,5 @@
 import { Vector2, EnemyType, Particle, StatHooks } from '../types';
-import { CANVAS_WIDTH, CANVAS_HEIGHT, PLAYER_ACCELERATION, PLAYER_FRICTION, PLAYER_MAX_SPEED, COLORS, BULLET_SPEED, FIRE_RATE, LOOP_DURATION, PLAYER_DASH_SPEED, PLAYER_DASH_DURATION, PLAYER_DASH_COOLDOWN, PLAYER_BASE_HP, PLAYER_NOVA_COOLDOWN, PLAYER_NOVA_RADIUS, PLAYER_NOVA_FORCE, XP_TO_OVERDRIVE, OVERDRIVE_DURATION } from './constants';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, PLAYER_ACCELERATION, PLAYER_FRICTION, PLAYER_MAX_SPEED, COLORS, BULLET_SPEED, FIRE_RATE, LOOP_DURATION, PLAYER_DASH_SPEED, PLAYER_DASH_DURATION, PLAYER_DASH_COOLDOWN, PLAYER_BASE_HP, PLAYER_NOVA_COOLDOWN, PLAYER_NOVA_RADIUS, PLAYER_NOVA_FORCE, XP_TO_OVERDRIVE, OVERDRIVE_DURATION, LORE_DATABASE } from './constants';
 import { AudioSystem } from './AudioSystem';
 
 export class GameEngine {
@@ -81,6 +81,9 @@ export class GameEngine {
   difficultyMultiplier: number = 1;
   combo: number = 0;
   comboTimer: number = 0;
+  
+  // Lore
+  unlockedLoreIds: Set<string> = new Set();
   
   // Cleanup
   eventListeners: { type: string, handler: any, target: any }[] = [];
@@ -239,6 +242,8 @@ export class GameEngine {
     this.difficultyMultiplier = 1;
     this.hitStop = 0;
     this.warningTriggered = false;
+    
+    // NOTE: unlockedLoreIds persists within the session (don't clear it on reset)
 
     this.hooks.onHealthChange(this.player.hp, this.player.maxHp);
     this.hooks.onScoreChange(0);
@@ -654,7 +659,7 @@ export class GameEngine {
       }
     }
 
-    // --- Pickups (Health & XP) ---
+    // --- Pickups (Health, XP, Lore) ---
     for (let i = this.pickups.length - 1; i >= 0; i--) {
         const p = this.pickups[i];
         // Bobbing effect
@@ -688,6 +693,21 @@ export class GameEngine {
                 }
                 this.createParticles(this.player.x, this.player.y, 5, COLORS.pickupXp);
                 this.audio.play('xp');
+            } else if (p.type === 'DATA') {
+                // Find a locked lore
+                const available = LORE_DATABASE.filter(l => !this.unlockedLoreIds.has(l.id));
+                if (available.length > 0) {
+                    const lore = available[Math.floor(Math.random() * available.length)];
+                    this.unlockedLoreIds.add(lore.id);
+                    this.hooks.onLoreUnlock({ ...lore, unlocked: true });
+                    this.togglePause(); // Pause game to read
+                } else {
+                    // Fallback if all collected: Big XP
+                    this.createDamageNumber(this.player.x, this.player.y, 100);
+                    this.player.xp += 25;
+                }
+                this.createParticles(this.player.x, this.player.y, 20, COLORS.pickupLore);
+                this.audio.play('powerup');
             }
 
             this.pickups[i] = this.pickups[this.pickups.length - 1];
@@ -891,7 +911,7 @@ export class GameEngine {
     });
   }
 
-  spawnPickup(x: number, y: number, type: 'HEALTH' | 'XP') {
+  spawnPickup(x: number, y: number, type: 'HEALTH' | 'XP' | 'DATA') {
       this.pickups.push({
           x, y, type,
           vx: (Math.random()-0.5)*100,
@@ -917,12 +937,16 @@ export class GameEngine {
       this.hooks.onScoreChange(this.score);
 
       // Pickup Drop Chance
+      // DATA SHARD (Rare, more likely on tanks/snipers)
+      if (Math.random() < 0.02 || (enemy.type === EnemyType.TANK && Math.random() < 0.3)) {
+         this.spawnPickup(enemy.x, enemy.y, 'DATA');
+      }
       // Health is rare
-      if (Math.random() < 0.05) {
+      else if (Math.random() < 0.05) {
           this.spawnPickup(enemy.x, enemy.y, 'HEALTH');
       }
       // XP is common (Data Fragments)
-      if (Math.random() < 0.6) {
+      else if (Math.random() < 0.6) {
           const amount = 1 + Math.floor(Math.random() * 3);
           for(let k=0; k<amount; k++) {
               this.spawnPickup(enemy.x, enemy.y, 'XP');
@@ -959,6 +983,9 @@ export class GameEngine {
     this.difficultyMultiplier += 0.2;
     this.hooks.onLevelUp();
     this.audio.play('powerup');
+    
+    // Always spawn a data shard at the start of a new loop
+    this.spawnPickup(CANVAS_WIDTH/2, CANVAS_HEIGHT/2 - 100, 'DATA');
   }
 
   startNextLoop() {
@@ -1080,24 +1107,36 @@ export class GameEngine {
 
     // Pickups
     for(const p of this.pickups) {
-        this.ctx.fillStyle = p.type === 'HEALTH' ? COLORS.pickupHealth : COLORS.pickupXp;
-        this.ctx.shadowBlur = 10;
-        this.ctx.shadowColor = this.ctx.fillStyle;
-        
-        if (p.type === 'HEALTH') {
-            this.ctx.fillRect(p.x - 6, p.y - 6, 12, 12);
-            // Draw Plus
-            this.ctx.fillStyle = '#000';
-            this.ctx.fillRect(p.x - 2, p.y - 4, 4, 8);
-            this.ctx.fillRect(p.x - 4, p.y - 2, 8, 4);
-        } else {
-            // XP are small diamonds
+        if (p.type === 'DATA') {
+            this.ctx.fillStyle = COLORS.pickupLore;
+            this.ctx.shadowBlur = 20;
+            this.ctx.shadowColor = COLORS.pickupLore;
+            // Draw Glitchy shard
             this.ctx.beginPath();
-            this.ctx.moveTo(p.x, p.y - 5);
-            this.ctx.lineTo(p.x + 5, p.y);
-            this.ctx.lineTo(p.x, p.y + 5);
-            this.ctx.lineTo(p.x - 5, p.y);
+            this.ctx.moveTo(p.x, p.y - 10);
+            this.ctx.lineTo(p.x + 8, p.y + 5);
+            this.ctx.lineTo(p.x - 8, p.y + 5);
             this.ctx.fill();
+        } else {
+            this.ctx.fillStyle = p.type === 'HEALTH' ? COLORS.pickupHealth : COLORS.pickupXp;
+            this.ctx.shadowBlur = 10;
+            this.ctx.shadowColor = this.ctx.fillStyle;
+            
+            if (p.type === 'HEALTH') {
+                this.ctx.fillRect(p.x - 6, p.y - 6, 12, 12);
+                // Draw Plus
+                this.ctx.fillStyle = '#000';
+                this.ctx.fillRect(p.x - 2, p.y - 4, 4, 8);
+                this.ctx.fillRect(p.x - 4, p.y - 2, 8, 4);
+            } else {
+                // XP are small diamonds
+                this.ctx.beginPath();
+                this.ctx.moveTo(p.x, p.y - 5);
+                this.ctx.lineTo(p.x + 5, p.y);
+                this.ctx.lineTo(p.x, p.y + 5);
+                this.ctx.lineTo(p.x - 5, p.y);
+                this.ctx.fill();
+            }
         }
         
         this.ctx.shadowBlur = 0;

@@ -39,6 +39,13 @@ export interface Particle {
   size: number;
 }
 
+export interface LoreFragment {
+  id: string;
+  title: string;
+  content: string;
+  unlocked: boolean;
+}
+
 export interface StatHooks {
   onHealthChange: (current: number, max: number) => void;
   onScoreChange: (score: number) => void;
@@ -46,8 +53,9 @@ export interface StatHooks {
   onGameOver: (stats: any) => void;
   onLevelUp: () => void;
   onPauseToggle: (isPaused: boolean) => void;
-  // New hooks
   onXpChange: (current: number, max: number, level: number) => void;
   onAbilityCooldown: (current: number, max: number) => void;
   onDangerWarning: () => void;
+  // New hook
+  onLoreUnlock: (fragment: LoreFragment) => void;
 }

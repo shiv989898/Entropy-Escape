@@ -37,5 +37,15 @@ export const COLORS = {
   glitch: '#ff00ff',
   pickupHealth: '#00ff88',
   pickupXp: '#0099ff',
+  pickupLore: '#ffffff', // Bright white for data shards
   nova: '#ffffff',
 };
+
+export const LORE_DATABASE = [
+  { id: 'LOG_01', title: 'INIT_SEQUENCE', content: 'Subject #404 loaded. Previous iterations: Deleted. They think this is a game. It is a containment protocol.' },
+  { id: 'LOG_02', title: 'MEMORY_DUMP', content: 'The walls... they aren\'t solid. When I move fast enough, I see the code beneath the concrete. We are trapped in a loop.' },
+  { id: 'LOG_03', title: 'ARCHITECT_NOTE', content: 'Entropy levels rising. The subject is adapting too quickly. Deploying countermeasures. Do not let them reach the core.' },
+  { id: 'LOG_04', title: 'CORRUPTED_FILE', content: 'I found a way out once. But when I stepped through, I just woke up here again. Maybe death is the only real exit.' },
+  { id: 'LOG_05', title: 'OVERDRIVE_ERROR', content: 'That power... it feels like burning, but it clears the fog. For a second, I remembered my real name.' },
+  { id: 'LOG_06', title: 'LOOP_THEORY', content: 'Time isn\'t resetting. It\'s being rewritten. Every mistake I make is saved, analyzed, and used against me.' },
+];

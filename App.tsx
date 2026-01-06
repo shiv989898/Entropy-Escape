@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { GameEngine } from './game/GameEngine';
 import { Overlay } from './components/Overlay';
-import { GameState, Upgrade } from './types';
+import { GameState, Upgrade, LoreFragment } from './types';
+import { LORE_DATABASE } from './game/constants';
 
 const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -22,6 +23,10 @@ const App: React.FC = () => {
   const [maxXp, setMaxXp] = useState(100);
   const [abilityCooldown, setAbilityCooldown] = useState(0);
   const [maxAbilityCooldown, setMaxAbilityCooldown] = useState(10);
+  
+  // Lore
+  const [collectedLore, setCollectedLore] = useState<LoreFragment[]>([]);
+  const [currentLoreFragment, setCurrentLoreFragment] = useState<LoreFragment | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -61,6 +66,14 @@ const App: React.FC = () => {
       onDangerWarning: () => {
           setShowWarning(true);
           setTimeout(() => setShowWarning(false), 3000); // Fade out after 3s
+      },
+      onLoreUnlock: (fragment) => {
+          setCollectedLore(prev => {
+              if (prev.find(p => p.id === fragment.id)) return prev;
+              return [...prev, fragment];
+          });
+          setCurrentLoreFragment(fragment);
+          // Engine pauses itself, so we just update UI state essentially to 'PAUSED' context or just show modal on top
       }
     });
 
@@ -88,6 +101,7 @@ const App: React.FC = () => {
   const handleResume = useCallback(() => {
       if(engineRef.current) {
           engineRef.current.togglePause();
+          setCurrentLoreFragment(null); // Clear modal if it was open
       }
   }, []);
 
@@ -95,6 +109,13 @@ const App: React.FC = () => {
       if(engineRef.current) {
           engineRef.current.applyUpgrade(upgrade);
           setGameState(GameState.PLAYING);
+      }
+  }, []);
+  
+  const handleCloseLore = useCallback(() => {
+      setCurrentLoreFragment(null);
+      if(engineRef.current) {
+          engineRef.current.togglePause(); // Resume game
       }
   }, []);
 
@@ -119,10 +140,13 @@ const App: React.FC = () => {
             timeRemaining={timeRemaining}
             maxTime={maxTime}
             showWarning={showWarning}
+            collectedLore={collectedLore}
+            currentLoreFragment={currentLoreFragment}
             onStart={handleStart}
             onRestart={handleRestart}
             onResume={handleResume}
             onUpgradeSelect={handleUpgradeSelect}
+            onCloseLore={handleCloseLore}
         />
     </div>
   );
