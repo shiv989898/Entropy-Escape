@@ -49,4 +49,5 @@ export interface StatHooks {
   // New hooks
   onXpChange: (current: number, max: number, level: number) => void;
   onAbilityCooldown: (current: number, max: number) => void;
+  onDangerWarning: () => void;
 }

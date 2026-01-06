@@ -8,6 +8,7 @@ const App: React.FC = () => {
   const engineRef = useRef<GameEngine | null>(null);
 
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
+  const [showWarning, setShowWarning] = useState(false);
   
   const [score, setScore] = useState(0);
   const [health, setHealth] = useState(100);
@@ -40,9 +41,11 @@ const App: React.FC = () => {
       onGameOver: (finalStats) => {
           setGameState(GameState.GAME_OVER);
           setScore(Math.floor(finalStats.score));
+          setShowWarning(false);
       },
       onLevelUp: () => {
           setGameState(GameState.LEVEL_UP);
+          setShowWarning(false);
       },
       onPauseToggle: (isPaused) => {
           setGameState(isPaused ? GameState.PAUSED : GameState.PLAYING);
@@ -54,6 +57,10 @@ const App: React.FC = () => {
       onAbilityCooldown: (curr, max) => {
           setAbilityCooldown(curr);
           setMaxAbilityCooldown(max);
+      },
+      onDangerWarning: () => {
+          setShowWarning(true);
+          setTimeout(() => setShowWarning(false), 3000); // Fade out after 3s
       }
     });
 
@@ -70,6 +77,7 @@ const App: React.FC = () => {
           engineRef.current.reset();
           engineRef.current.start();
           setGameState(GameState.PLAYING);
+          setShowWarning(false);
       }
   }, []);
 
@@ -110,6 +118,7 @@ const App: React.FC = () => {
             loop={loop}
             timeRemaining={timeRemaining}
             maxTime={maxTime}
+            showWarning={showWarning}
             onStart={handleStart}
             onRestart={handleRestart}
             onResume={handleResume}

@@ -28,6 +28,7 @@ export class GameEngine {
   loopTimer: number = LOOP_DURATION;
   loopCount: number = 1;
   loopMaxTime: number = LOOP_DURATION;
+  warningTriggered: boolean = false;
 
   // Player
   player = {
@@ -237,6 +238,7 @@ export class GameEngine {
     this.loopTimer = LOOP_DURATION;
     this.difficultyMultiplier = 1;
     this.hitStop = 0;
+    this.warningTriggered = false;
 
     this.hooks.onHealthChange(this.player.hp, this.player.maxHp);
     this.hooks.onScoreChange(0);
@@ -278,6 +280,11 @@ export class GameEngine {
 
     // Audio cue for low time
     if (this.loopTimer <= 10 && this.loopTimer > 0) {
+        if (!this.warningTriggered) {
+             this.warningTriggered = true;
+             this.hooks.onDangerWarning();
+        }
+
         // Pulse every second approx
         if (Math.floor(this.loopTimer) !== Math.floor(this.loopTimer + dt)) {
              this.audio.play('alert');
@@ -972,6 +979,8 @@ export class GameEngine {
       this.hooks.onHealthChange(this.player.hp, this.player.maxHp);
       
       this.hooks.onAbilityCooldown(0, PLAYER_NOVA_COOLDOWN); // Reset cooldown
+      
+      this.warningTriggered = false;
 
       this.start();
   }

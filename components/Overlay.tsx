@@ -14,6 +14,7 @@ interface OverlayProps {
   loop: number;
   timeRemaining: number;
   maxTime: number;
+  showWarning: boolean;
   onStart: () => void;
   onRestart: () => void;
   onUpgradeSelect: (upgrade: Upgrade) => void;
@@ -65,31 +66,16 @@ const getRandomUpgrades = (count: number) => {
 };
 
 export const Overlay: React.FC<OverlayProps> = ({ 
-    gameState, score, health, maxHealth, xp, maxXp, abilityCooldown, maxAbilityCooldown, loop, timeRemaining, maxTime, 
+    gameState, score, health, maxHealth, xp, maxXp, abilityCooldown, maxAbilityCooldown, loop, timeRemaining, maxTime, showWarning,
     onStart, onRestart, onUpgradeSelect, onResume
 }) => {
   const [upgrades, setUpgrades] = useState<Upgrade[]>([]);
-  const [showWarning, setShowWarning] = useState(false);
 
   useEffect(() => {
     if (gameState === GameState.LEVEL_UP) {
         setUpgrades(getRandomUpgrades(3));
     }
   }, [gameState]);
-
-  // Handle fading warning
-  useEffect(() => {
-      // Trigger warning when time hits 10s. 
-      // Using Math.ceil to capture it around the 10 second mark, preventing multi-triggers if possible
-      if (gameState === GameState.PLAYING && timeRemaining <= 10 && timeRemaining > 9.5) {
-          setShowWarning(true);
-          const timer = setTimeout(() => setShowWarning(false), 3000); // Disappear after 3s
-          return () => clearTimeout(timer);
-      }
-      if (timeRemaining > 10) {
-          setShowWarning(false);
-      }
-  }, [Math.floor(timeRemaining), gameState]);
 
   const healthPerc = (health / maxHealth) * 100;
   const timePerc = (timeRemaining / maxTime) * 100;
