@@ -4,6 +4,7 @@ export enum GameState {
   PAUSED = 'PAUSED',
   LEVEL_UP = 'LEVEL_UP',
   GAME_OVER = 'GAME_OVER',
+  CUTSCENE = 'CUTSCENE',
 }
 
 export interface Vector2 {
@@ -17,6 +18,7 @@ export enum EnemyType {
   TANK = 'TANK',
   SNIPER = 'SNIPER',
   GUNNER = 'GUNNER',
+  BOSS = 'BOSS',
 }
 
 export interface Upgrade {
@@ -46,6 +48,34 @@ export interface LoreFragment {
   unlocked: boolean;
 }
 
+export interface StoryBeat {
+  id: string;
+  speaker: 'SYSTEM' | 'PROXY' | 'UNKNOWN';
+  text: string[];
+  triggerLoop?: number;
+}
+
+export interface CheckpointData {
+  loop: number;
+  score: number;
+  playerStats: {
+    hp: number;
+    maxHp: number;
+    xp: number;
+    speedMult: number;
+    damageMult: number;
+    fireRateMult: number;
+    projectileCount: number;
+    piercing: number;
+    dashCooldownMult: number;
+    homing: number;
+    orbitals: number;
+    lifesteal: number;
+    gravDash: boolean;
+  };
+  collectedLore: string[];
+}
+
 export interface StatHooks {
   onHealthChange: (current: number, max: number) => void;
   onScoreChange: (score: number) => void;
@@ -56,6 +86,6 @@ export interface StatHooks {
   onXpChange: (current: number, max: number, level: number) => void;
   onAbilityCooldown: (current: number, max: number) => void;
   onDangerWarning: () => void;
-  // New hook
   onLoreUnlock: (fragment: LoreFragment) => void;
+  onStoryTrigger: (beat: StoryBeat) => void;
 }

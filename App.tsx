@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { GameEngine } from './game/GameEngine';
 import { Overlay } from './components/Overlay';
-import { GameState, Upgrade, LoreFragment } from './types';
+import { StoryOverlay } from './components/StoryOverlay';
+import { GameState, Upgrade, LoreFragment, StoryBeat } from './types';
 import { LORE_DATABASE } from './game/constants';
 
 const App: React.FC = () => {
@@ -24,9 +25,10 @@ const App: React.FC = () => {
   const [abilityCooldown, setAbilityCooldown] = useState(0);
   const [maxAbilityCooldown, setMaxAbilityCooldown] = useState(10);
   
-  // Lore
+  // Lore & Story
   const [collectedLore, setCollectedLore] = useState<LoreFragment[]>([]);
   const [currentLoreFragment, setCurrentLoreFragment] = useState<LoreFragment | null>(null);
+  const [activeStoryBeat, setActiveStoryBeat] = useState<StoryBeat | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -65,7 +67,7 @@ const App: React.FC = () => {
       },
       onDangerWarning: () => {
           setShowWarning(true);
-          setTimeout(() => setShowWarning(false), 3000); // Fade out after 3s
+          setTimeout(() => setShowWarning(false), 3000); 
       },
       onLoreUnlock: (fragment) => {
           setCollectedLore(prev => {
@@ -73,7 +75,10 @@ const App: React.FC = () => {
               return [...prev, fragment];
           });
           setCurrentLoreFragment(fragment);
-          // Engine pauses itself, so we just update UI state essentially to 'PAUSED' context or just show modal on top
+      },
+      onStoryTrigger: (beat) => {
+          setActiveStoryBeat(beat);
+          setGameState(GameState.CUTSCENE);
       }
     });
 
@@ -98,10 +103,18 @@ const App: React.FC = () => {
       handleStart();
   }, [handleStart]);
 
+  const handleLoadCheckpoint = useCallback(() => {
+      if(engineRef.current) {
+          engineRef.current.loadCheckpoint();
+          setGameState(GameState.PLAYING);
+          setShowWarning(false);
+      }
+  }, []);
+
   const handleResume = useCallback(() => {
       if(engineRef.current) {
           engineRef.current.togglePause();
-          setCurrentLoreFragment(null); // Clear modal if it was open
+          setCurrentLoreFragment(null); 
       }
   }, []);
 
@@ -115,7 +128,15 @@ const App: React.FC = () => {
   const handleCloseLore = useCallback(() => {
       setCurrentLoreFragment(null);
       if(engineRef.current) {
-          engineRef.current.togglePause(); // Resume game
+          engineRef.current.togglePause(); 
+      }
+  }, []);
+
+  const handleStoryComplete = useCallback(() => {
+      setActiveStoryBeat(null);
+      if(engineRef.current) {
+          engineRef.current.resumeFromCutscene();
+          setGameState(GameState.PLAYING);
       }
   }, []);
 
@@ -127,6 +148,14 @@ const App: React.FC = () => {
             style={{ display: 'block' }} 
         />
         
+        {/* Story Overlay */}
+        {activeStoryBeat && (
+            <StoryOverlay 
+                beat={activeStoryBeat} 
+                onComplete={handleStoryComplete} 
+            />
+        )}
+
         <Overlay 
             gameState={gameState}
             score={score}
@@ -147,6 +176,7 @@ const App: React.FC = () => {
             onResume={handleResume}
             onUpgradeSelect={handleUpgradeSelect}
             onCloseLore={handleCloseLore}
+            onLoadCheckpoint={handleLoadCheckpoint}
         />
     </div>
   );

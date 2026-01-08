@@ -11,7 +11,7 @@ export class AudioSystem {
     this.masterGain.connect(this.ctx.destination);
   }
 
-  play(type: 'shoot' | 'enemyShoot' | 'explosion' | 'hit' | 'dash' | 'powerup' | 'alert' | 'nova' | 'xp') {
+  play(type: 'shoot' | 'enemyShoot' | 'explosion' | 'hit' | 'dash' | 'powerup' | 'alert' | 'nova' | 'xp' | 'overdrive' | 'lore' | 'orbitalHit' | 'bossSpawn' | 'bossCharge' | 'cooldownReady') {
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
@@ -49,6 +49,30 @@ export class AudioSystem {
       case 'nova':
         this.playNoise(t, 0.5, 200, 'lowpass', true); // Boom
         this.playTone(t, 150, 'sawtooth', 0.4, -100); // Zap
+        break;
+      case 'overdrive':
+        // Rising power sound
+        this.playTone(t, 200, 'square', 0.5, 800);
+        this.playTone(t, 205, 'sawtooth', 0.5, 805); // Detuned layer
+        break;
+      case 'lore':
+        // Digital data stream
+        for(let i=0; i<5; i++) {
+            setTimeout(() => this.playTone(this.ctx.currentTime, 1000 + Math.random()*1000, 'square', 0.05, 0), i * 50);
+        }
+        break;
+      case 'orbitalHit':
+        this.playTone(t, 1200, 'triangle', 0.05, -200);
+        break;
+      case 'bossSpawn':
+        this.playTone(t, 100, 'sawtooth', 1.5, -50);
+        this.playNoise(t, 2.0, 50, 'lowpass');
+        break;
+      case 'bossCharge':
+        this.playTone(t, 200, 'sawtooth', 0.8, 400); // Rising pitch
+        break;
+      case 'cooldownReady':
+        this.playTone(t, 1500, 'sine', 0.3, 0); // High chime
         break;
     }
   }

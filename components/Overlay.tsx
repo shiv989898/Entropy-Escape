@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { GameState, Upgrade, LoreFragment } from '../types';
-import { Play, RotateCcw, Zap, Skull, Shield, Activity, Clock, Pause, Target, Disc, Move, Database, FileText, Lock } from 'lucide-react';
-import { LORE_DATABASE } from '../game/constants';
+import { Play, RotateCcw, Zap, Skull, Shield, Activity, Clock, Pause, Target, Disc, Move, Database, FileText, Lock, Settings } from 'lucide-react';
+import { LORE_DATABASE, GEAR_POOL } from '../game/constants';
 
 interface OverlayProps {
   gameState: GameState;
@@ -23,56 +23,18 @@ interface OverlayProps {
   onUpgradeSelect: (upgrade: Upgrade) => void;
   onResume: () => void;
   onCloseLore: () => void;
+  onLoadCheckpoint: () => void;
 }
 
-const UPGRADES_POOL: Upgrade[] = [
-    {
-        id: 'dmg_boost', name: 'OVERCLOCK CORE', description: 'Increase Damage by 25%.', rarity: 'COMMON', type: 'STAT',
-        apply: (e: any) => { e.player.damageMult += 0.25; }
-    },
-    {
-        id: 'speed_boost', name: 'HYDRAULIC LEGS', description: 'Increase Move Speed by 20%.', rarity: 'COMMON', type: 'STAT',
-        apply: (e: any) => { e.player.speedMult += 0.20; }
-    },
-    {
-        id: 'fire_rate', name: 'RAPID CYCLER', description: 'Increase Fire Rate by 20%.', rarity: 'COMMON', type: 'STAT',
-        apply: (e: any) => { e.player.fireRateMult += 0.20; }
-    },
-    {
-        id: 'multi_shot', name: 'SPLIT BARREL', description: 'Add +1 Projectile but decrease damage slightly.', rarity: 'RARE', type: 'WEAPON',
-        apply: (e: any) => { e.player.projectileCount += 1; e.player.damageMult *= 0.85; }
-    },
-    {
-        id: 'piercing', name: 'RAILGUN ROUNDS', description: 'Projectiles pierce through enemies.', rarity: 'LEGENDARY', type: 'WEAPON',
-        apply: (e: any) => { e.player.piercing = 1; }
-    },
-    {
-        id: 'homing', name: 'SMART ROUNDS', description: 'Projectiles steer towards enemies.', rarity: 'LEGENDARY', type: 'WEAPON',
-        apply: (e: any) => { e.player.homing = 1; }
-    },
-    {
-        id: 'orbitals', name: 'ION SHIELD', description: 'Add a rotating shield that damages enemies.', rarity: 'RARE', type: 'UTILITY',
-        apply: (e: any) => { e.player.orbitals += 1; }
-    },
-    {
-        id: 'dash_cooldown', name: 'PHASE ENGINE', description: 'Dash Cooldown reduced by 30%.', rarity: 'RARE', type: 'UTILITY',
-        apply: (e: any) => { e.player.dashCooldownMult *= 0.7; }
-    },
-    {
-        id: 'corrupted_power', name: 'FORBIDDEN CODE', description: 'Double Damage, but Half Max Health. [CORRUPTED]', rarity: 'CORRUPTED', type: 'STAT',
-        apply: (e: any) => { e.player.damageMult *= 2; e.player.maxHp *= 0.5; e.player.hp = Math.min(e.player.hp, e.player.maxHp); }
-    }
-];
-
 const getRandomUpgrades = (count: number) => {
-    const shuffled = [...UPGRADES_POOL].sort(() => 0.5 - Math.random());
+    const shuffled = [...GEAR_POOL].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, count);
 };
 
 export const Overlay: React.FC<OverlayProps> = ({ 
     gameState, score, health, maxHealth, xp, maxXp, abilityCooldown, maxAbilityCooldown, loop, timeRemaining, maxTime, showWarning,
     collectedLore, currentLoreFragment,
-    onStart, onRestart, onUpgradeSelect, onResume, onCloseLore
+    onStart, onRestart, onUpgradeSelect, onResume, onCloseLore, onLoadCheckpoint
 }) => {
   const [upgrades, setUpgrades] = useState<Upgrade[]>([]);
   const [showDatabase, setShowDatabase] = useState(false);
@@ -87,7 +49,6 @@ export const Overlay: React.FC<OverlayProps> = ({
   const timePerc = (timeRemaining / maxTime) * 100;
   const xpPerc = (xp / maxXp) * 100;
   const abilityReady = abilityCooldown <= 0;
-  const abilityPerc = ((maxAbilityCooldown - abilityCooldown) / maxAbilityCooldown) * 100;
 
   // Render Lore Modal
   if (currentLoreFragment) {
@@ -106,6 +67,9 @@ export const Overlay: React.FC<OverlayProps> = ({
           </div>
       );
   }
+
+  // Hide overlay during cutscenes
+  if (gameState === GameState.CUTSCENE) return null;
 
   // Render HUD
   if (gameState === GameState.PLAYING) {
@@ -254,9 +218,6 @@ export const Overlay: React.FC<OverlayProps> = ({
               <p>> INITIATING SEQUENCE...</p>
               <p>> SUBJECT: USER_01</p>
               <p>> OBJECTIVE: SURVIVE THE LOOP. BREAK THE CYCLE.</p>
-              <p>> CONTROLS: [WASD] MOVE // [MOUSE] AIM // [SPACE] DASH</p>
-              <p>> ABILITY: [E] or [R-CLICK] PULSE NOVA</p>
-              <p>> MECHANIC: COLLECT DATA FRAGMENTS TO TRIGGER OVERDRIVE</p>
           </div>
           <div className="flex flex-col gap-4">
             <button 
@@ -290,23 +251,33 @@ export const Overlay: React.FC<OverlayProps> = ({
               <div className="text-right text-2xl font-bold text-white">{loop - 1}</div>
           </div>
 
-          <button 
-            onClick={onRestart}
-            className="w-full group relative px-12 py-4 bg-red-600 text-white text-2xl font-bold hover:bg-red-500 transition-all duration-100"
-          >
-             <span className="flex items-center gap-2 justify-center">
-                <RotateCcw size={24} /> REBOOT SYSTEM
-            </span>
-          </button>
+          <div className="flex gap-4">
+            <button 
+                onClick={onRestart}
+                className="flex-1 group relative px-4 py-4 bg-red-600 text-white text-xl font-bold hover:bg-red-500 transition-all duration-100"
+            >
+                <span className="flex items-center gap-2 justify-center">
+                    <RotateCcw size={20} /> REBOOT (FRESH)
+                </span>
+            </button>
+            <button 
+                onClick={onLoadCheckpoint}
+                className="flex-1 group relative px-4 py-4 bg-cyan-600 text-white text-xl font-bold hover:bg-cyan-500 transition-all duration-100"
+            >
+                <span className="flex items-center gap-2 justify-center">
+                    <Settings size={20} /> REBOOT (CHECKPOINT)
+                </span>
+            </button>
+          </div>
         </div>
       )}
 
-      {/* LEVEL UP / LOOP RESET */}
+      {/* LEVEL UP / GEAR SELECT */}
       {gameState === GameState.LEVEL_UP && (
         <div className="w-full max-w-4xl p-8 space-y-8">
             <div className="text-center space-y-2">
                 <h1 className="text-5xl font-bold text-yellow-400 glitch" data-text="LOOP COMPLETE">LOOP COMPLETE</h1>
-                <p className="text-xl text-gray-300">REALITY RECONFIGURING... SELECT MUTATION</p>
+                <p className="text-xl text-gray-300">SYSTEM VULNERABILITY DETECTED. SELECT MODULE.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
